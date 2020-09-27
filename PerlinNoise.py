@@ -2,7 +2,7 @@ from PIL import Image
 import random
 from itertools import product
 import math
-import time
+from MapRendering import MapGenerator
 
 
 class PerlinNoise(object):
@@ -75,51 +75,12 @@ class PerlinNoise(object):
         return a+x*(b-a)
 
 
-class MapGenerator(object):
-    def __init__(self, data):
-        self.data = data
-        self.length = len(self.data)
-        self.bottom = min(self.data)
-        self.top = max(self.data)
-        self.scale = self.top-self.bottom
-        self.snow = 0.99
-        self.mountain = 0.95
-        self.large_hill = 0.9
-        self.hill = 0.8
-        self.plain = 0.4
-        self.beach = 0.3
-        self.shallow_water = 0.2
-
-    def __call__(self):
-        self.generate_map()
-        return self.data
-
-    def generate_map(self):
-        for i in range(0, self.length):
-            if self.top >= self.data[i] > self.bottom+(self.scale*self.snow):
-                self.data[i] = (240, 240, 236)
-            elif self.top >= self.data[i] > self.bottom+(self.scale*self.mountain):
-                self.data[i] = (134, 126, 112)
-            elif self.bottom+(self.scale*self.mountain) > self.data[i] > self.bottom+(self.scale*self.large_hill):
-                self.data[i] = (151, 124, 83)
-            elif self.bottom+(self.scale*self.large_hill) > self.data[i] > self.bottom+(self.scale*self.hill):
-                self.data[i] = (222, 165, 33)
-            elif self.bottom+(self.scale*self.hill) > self.data[i] > self.bottom+(self.scale*self.plain):
-                self.data[i] = (124, 252, 0)
-            elif self.bottom+(self.scale*self.plain) > self.data[i] > self.bottom+(self.scale*self.beach):
-                self.data[i] = (253, 223, 119)
-            elif self.bottom+(self.scale*self.beach) > self.data[i] > self.bottom+(self.scale*self.shallow_water):
-                self.data[i] = (144, 152, 204)
-            elif self.bottom <= self.data[i] <= self.bottom+(self.scale*self.shallow_water):
-                self.data[i] = (0, 0, 89)
-
-
-size = 256
+size = 1280
 values = [(x/size, y/size) for x in range(0, size) for y in range(0, size)]
-noise_generator = PerlinNoise(6, persistence=1.4, frequency_factor=1.6)
+noise_generator = PerlinNoise(6, persistence=1.5, frequency_factor=2)
 noise_values = list(map(noise_generator, values))
 map_generator = MapGenerator(noise_values)
-map_values = map_generator()
+map_values = map_generator.generate_map()
 image = Image.new("RGB", (size, size))
 image.putdata(map_values, 128, 128)
 image.save("map.png")
