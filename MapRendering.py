@@ -10,17 +10,9 @@ class MapGenerator(object):
                                    0.95: (134, 126, 112),
                                    1: (240, 240, 236)}
 
-    @staticmethod
-    def normalise_data(point, minimum, maximum):
-        point = (point - minimum) / (maximum - minimum)
-        return point
-
     def generate_map(self):
-        minimum = min(self.data)
-        maximum = max(self.data)
         for i in range(0, len(self.data)):
             point = self.data[i]
-            point = self.normalise_data(point, minimum, maximum)
             keys = list(self.terrain_dictionary.keys())
             for boundary in range(0, len(keys)-1):
                 if keys[boundary] <= point <= keys[boundary+1]:

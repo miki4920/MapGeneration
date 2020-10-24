@@ -1,86 +1,58 @@
-from PIL import Image
-import random
+from MathematicalFunctions import gaussian_vector
 from itertools import product
-import math
-from MapRendering import MapGenerator
 
 
 class PerlinNoise(object):
-    def __init__(self, octaves=1, persistence=2.0, frequency_factor=1.0):
-        self.gradients = dict.fromkeys(range(10))
-        self.octaves = octaves
-        self.persistence = persistence
-        self.frequency_factor = frequency_factor
-        self.point = []
-
-    def __call__(self, point):
-        self.point = point
-        noise = 0
-        scalar = 2**0.5
-        for octave in range(self.octaves):
-            noise += ((self.generate_noise() * scalar) / (self.persistence ** octave))
-            self.point = [coordinate*self.frequency_factor*(1 << octave) for coordinate in point]
-        noise /= 2 - 2 ** (1 - self.octaves)
-        r = (noise + 1) / 2
-        for _ in range(int(self.octaves / 2 + 0.5)):
-            r = self.fade(r)
-        noise = r * 2 - 1
-        return noise
-
-    @staticmethod
-    def _generate_gradient():
-        vectors = [random.gauss(0, 1) for _ in range(2)]
-        modulus = (vectors[0] ** 2 + vectors[1] ** 2) ** (-0.5)
-        vectors = [vectors[0] * modulus, vectors[1] * modulus]
-        return vectors
-
-    def generate_noise(self):
-        grid_points = []
-        for coord in self.point:
-            min_coord = math.floor(coord)
-            max_coord = min_coord + 1
-            grid_points.append((min_coord, max_coord))
-        dots = []
-        for grid_point in product(*grid_points):
-            if grid_point not in self.gradients:
-                self.gradients[grid_point] = self._generate_gradient()
-            gradient = self.gradients[grid_point]
-            dot = self.dot_product(gradient,
-                                   [self.point[0]-grid_point[0], self.point[1]-grid_point[1]])
-            dots.append(dot)
-        noise = self.find_average([self.point[0]-grid_points[0][0], self.point[1]-grid_points[1][0]], dots)
-        return noise
-
-    def find_average(self, point, dots):
-        x = point[0]
-        y = point[1]
-        average_x = self.fade(x)
-        average_y = self.fade(y)
-        linear_one = self.linear(dots[0], dots[1], average_y)
-        linear_two = self.linear(dots[2], dots[3], average_y)
-        linear_final = self.linear(linear_one, linear_two, average_x)
-        return linear_final
+    def __init__(self):
+        self.gradient_points = {}
 
     @staticmethod
     def dot_product(a, b):
-        influence = (a[0]*b[0])+(a[1]*b[1])
-        return influence
+        result = 0
+        for i in range(0, len(a)):
+            result += a[i]*b[i]
+        return result
 
     @staticmethod
     def fade(t):
         return (6 * (t ** 5)) - (15 * (t ** 4)) + (10 * (t ** 3))
 
     @staticmethod
-    def linear(a, b, x):
-        return a+x*(b-a)
+    def lerp(a, b, t):
+        return a + t * (b - a)
 
+    def generate_noise_point(self, point):
+        grid_points = []
+        dimension = len(point)
+        for coordinate in point:
+            min_coordinate = int(coordinate//1)
+            max_coordinate = min_coordinate+1
+            grid_points.append((min_coordinate, max_coordinate))
+        dots = []
+        for grid_point in product(*grid_points):
+            if grid_point not in self.gradient_points:
+                self.gradient_points[grid_point] = gaussian_vector(dimension)
+            position = [point[i] - grid_point[i] for i in range(0, dimension)]
+            gradient = self.gradient_points[grid_point]
+            dot_product = self.dot_product(gradient, position)
+            dots.append(dot_product)
+        for current_dimension in range(0, dimension):
+            faded_point = point[current_dimension]-grid_points[current_dimension][0]
+            interpolated_dots = []
+            for i in range(0, len(dots)-1, 2):
+                interpolation = self.lerp(dots[i], dots[i+1], faded_point)
+                interpolated_dots.append(interpolation)
+            dots = interpolated_dots
+        return (dots[0]+1)/2
 
-size = 1280
-values = [(x/size, y/size) for x in range(0, size) for y in range(0, size)]
-noise_generator = PerlinNoise(6, persistence=1.5, frequency_factor=2)
-noise_values = list(map(noise_generator, values))
-map_generator = MapGenerator(noise_values)
-map_values = map_generator.generate_map()
-image = Image.new("RGB", (size, size))
-image.putdata(map_values, 128, 128)
-image.save("map.png")
+    def octave_perlin(self, point, octaves=1, persistence=0.5, lacunarity=2):
+        total = 0
+        frequency = 1
+        amplitude = 1
+        max_value = 0
+        for _ in range(0, octaves):
+            total += self.generate_noise_point([coordinate*frequency for coordinate in point]) * amplitude
+            max_value += amplitude
+            amplitude *= persistence
+            frequency *= lacunarity
+        return total/max_value
