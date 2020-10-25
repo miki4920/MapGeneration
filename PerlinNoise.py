@@ -1,10 +1,14 @@
 from MathematicalFunctions import gaussian_vector
 from itertools import product
+from MapRendering import MapGenerator
+from PIL import Image
 
 
 class PerlinNoise(object):
-    def __init__(self):
+    def __init__(self, dimension):
         self.gradient_points = {}
+        self.dimension = dimension
+        self.scale_factor = 2 * dimension ** -0.5
 
     @staticmethod
     def dot_product(a, b):
@@ -15,7 +19,7 @@ class PerlinNoise(object):
 
     @staticmethod
     def fade(t):
-        return (6 * (t ** 5)) - (15 * (t ** 4)) + (10 * (t ** 3))
+        return t * t * t * (t * (t * 6 - 15) + 10)
 
     @staticmethod
     def lerp(a, b, t):
@@ -36,14 +40,16 @@ class PerlinNoise(object):
             gradient = self.gradient_points[grid_point]
             dot_product = self.dot_product(gradient, position)
             dots.append(dot_product)
-        for current_dimension in range(0, dimension):
-            faded_point = point[current_dimension]-grid_points[current_dimension][0]
+        dimension = self.dimension
+        while len(dots) > 1:
+            dimension -= 1
+            faded_point = self.fade(point[dimension] - grid_points[dimension][0])
             interpolated_dots = []
-            for i in range(0, len(dots)-1, 2):
-                interpolation = self.lerp(dots[i], dots[i+1], faded_point)
+            while dots:
+                interpolation = self.lerp(faded_point, dots.pop(0), dots.pop(0))
                 interpolated_dots.append(interpolation)
             dots = interpolated_dots
-        return (dots[0]+1)/2
+        return dots[0]*self.scale_factor
 
     def octave_perlin(self, point, octaves=1, persistence=0.5, lacunarity=2):
         total = 0
@@ -55,4 +61,19 @@ class PerlinNoise(object):
             max_value += amplitude
             amplitude *= persistence
             frequency *= lacunarity
-        return total/max_value
+        total /= 2 - 2 ** (1 - octaves)
+        return total / max_value
+
+
+size = 256
+noise = size*size*[None]
+noise_generator = PerlinNoise(2)
+for y in range(0, size):
+    for x in range(0, size):
+        noise[y*size+x] = (noise_generator.octave_perlin((x/size, y/size), 6)+1)/4
+print(min(noise), max(noise))
+map_generator = MapGenerator(noise)
+map_data = map_generator.generate_map()
+img = Image.new('RGB', (size, size))
+img.putdata(noise)
+img.show()
