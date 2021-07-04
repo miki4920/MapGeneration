@@ -18,6 +18,18 @@ class PerlinNoise(object):
         self.dimension = dimension
         self.gradient = {}
 
+    def __call__(self, point, *, octaves=1, frequency=2.0, persistence=1.0):
+        total = 0
+        amplitude = 1
+        normalise_value = 0
+        for i in range(0, octaves):
+            total += self.get_noise(point) * amplitude
+            normalise_value += amplitude
+            amplitude *= persistence
+            for coordinate in range(0, self.dimension):
+                point[coordinate] *= frequency
+        return total/normalise_value
+
     def get_gradient(self):
         random_point = [random.gauss(0, 1) for _ in range(self.dimension)]
         scale = sum(n*n for n in random_point)**-0.5
@@ -54,11 +66,11 @@ class PerlinNoise(object):
 
 perlin_generator = PerlinNoise(2)
 
-terrain = [0]*1000000
-for y in range(0, 1000):
-    for x in range(0, 1000):
-        terrain[y*1000+x] = int(perlin_generator.get_noise((x/100, y/100))*255)
+terrain = [0]*10000
+for y in range(0, 100):
+    for x in range(0, 100):
+        terrain[y*100+x] = int(perlin_generator([x/100, y/100], octaves=6, persistence=1.3, frequency=1.7)*255)
 
-image = Image.new("L", (1000, 1000))
+image = Image.new("L", (100, 100))
 image.putdata(terrain)
 image.save("terrain.png")
